@@ -102,13 +102,13 @@ const RoomDetail = () => {
 
 const RoomsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [capacityFilter, setCapacityFilter] = useState<string>('');
+  const [capacityFilter, setCapacityFilter] = useState<string>('all');
   
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            room.location.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCapacity = !capacityFilter || 
+    const matchesCapacity = capacityFilter === 'all' || 
                            (capacityFilter === 'small' && room.capacity <= 4) ||
                            (capacityFilter === 'medium' && room.capacity > 4 && room.capacity <= 10) ||
                            (capacityFilter === 'large' && room.capacity > 10);
@@ -141,7 +141,7 @@ const RoomsList = () => {
                 <SelectValue placeholder="Filter by capacity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All sizes</SelectItem>
+                <SelectItem value="all">All sizes</SelectItem>
                 <SelectItem value="small">Small (1-4)</SelectItem>
                 <SelectItem value="medium">Medium (5-10)</SelectItem>
                 <SelectItem value="large">Large (10+)</SelectItem>
@@ -152,7 +152,7 @@ const RoomsList = () => {
           <div className="w-full sm:w-1/4">
             <Button variant="outline" className="w-full" onClick={() => {
               setSearchTerm('');
-              setCapacityFilter('');
+              setCapacityFilter('all');
             }}>
               Reset Filters
             </Button>
