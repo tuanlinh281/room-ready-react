@@ -4,22 +4,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import RoomCard from '@/components/booking/RoomCard';
 import BookingForm from '@/components/booking/BookingForm';
-import { rooms } from '@/lib/data';
+import { useRooms, useRoom } from '@/hooks/useRooms';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const RoomDetail = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
+  const { data: room, isLoading, error } = useRoom(roomId!);
   
-  const room = rooms.find(r => r.id === roomId);
-  
-  if (!room) {
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <p className="text-muted-foreground">Loading room details...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !room) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
@@ -103,6 +110,7 @@ const RoomDetail = () => {
 const RoomsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [capacityFilter, setCapacityFilter] = useState<string>('all');
+  const { data: rooms = [], isLoading, error } = useRooms();
   
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -115,6 +123,27 @@ const RoomsList = () => {
                            
     return matchesSearch && matchesCapacity;
   });
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <p className="text-muted-foreground">Loading rooms...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <h2 className="text-2xl font-bold">Error loading rooms</h2>
+          <p className="text-muted-foreground">Please try again later.</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

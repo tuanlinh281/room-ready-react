@@ -1,9 +1,8 @@
 
-import { useState } from 'react';
 import Layout from '@/components/layout/Layout';
 import BookingList from '@/components/booking/BookingList';
 import BookingCalendar from '@/components/booking/BookingCalendar';
-import { bookings } from '@/lib/data';
+import { useBookings } from '@/hooks/useBookings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,11 +10,33 @@ import { useNavigate } from 'react-router-dom';
 
 const Bookings = () => {
   const navigate = useNavigate();
+  const { data: bookings = [], isLoading, error } = useBookings();
   
   // Sort bookings with most recent first
   const sortedBookings = [...bookings].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime()
   );
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <p className="text-muted-foreground">Loading bookings...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <h2 className="text-2xl font-bold">Error loading bookings</h2>
+          <p className="text-muted-foreground">Please try again later.</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -61,7 +82,7 @@ const Bookings = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <BookingCalendar />
+                <BookingCalendar bookings={sortedBookings} />
               </CardContent>
             </Card>
           </TabsContent>

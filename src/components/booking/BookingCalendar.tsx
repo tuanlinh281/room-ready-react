@@ -1,14 +1,19 @@
 
 import { useState } from 'react';
-import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Booking, Room, bookings, rooms } from '@/lib/data';
+import { Booking } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { useRooms } from '@/hooks/useRooms';
 
-const BookingCalendar = () => {
+interface BookingCalendarProps {
+  bookings?: Booking[];
+}
+
+const BookingCalendar = ({ bookings = [] }: BookingCalendarProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const { data: rooms = [] } = useRooms();
   
   // Get all bookings for the selected date
   const getDayBookings = (date: Date) => {

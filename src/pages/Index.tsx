@@ -4,10 +4,14 @@ import AvailabilityDashboard from '@/components/dashboard/AvailabilityDashboard'
 import BookingCalendar from '@/components/booking/BookingCalendar';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { rooms } from '@/lib/data';
+import { useRooms } from '@/hooks/useRooms';
+import { useBookings } from '@/hooks/useBookings';
 import RoomCard from '@/components/booking/RoomCard';
 
 const Index = () => {
+  const { data: rooms = [] } = useRooms();
+  const { data: bookings = [] } = useBookings();
+
   return (
     <Layout>
       <div className="flex flex-col gap-6">
@@ -30,7 +34,7 @@ const Index = () => {
           </TabsContent>
           
           <TabsContent value="calendar" className="mt-4">
-            <BookingCalendar />
+            <BookingCalendar bookings={bookings} />
           </TabsContent>
           
           <TabsContent value="rooms" className="mt-4">

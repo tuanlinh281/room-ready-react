@@ -5,12 +5,15 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { rooms, bookings, Room, Booking, getTodayBookings } from '@/lib/data';
+import { useRooms } from '@/hooks/useRooms';
+import { useBookings, useTodayBookings } from '@/hooks/useBookings';
+import { Room, Booking } from '@/lib/data';
 
 const AvailabilityDashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
-  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
+  const { data: rooms = [] } = useRooms();
+  const { data: allBookings = [] } = useBookings();
+  const { data: todayBookings = [] } = useTodayBookings();
 
   useEffect(() => {
     // Update current time every minute
@@ -18,19 +21,18 @@ const AvailabilityDashboard = () => {
       setCurrentTime(new Date());
     }, 60000);
 
-    // Get today's bookings
-    setTodayBookings(getTodayBookings());
+    return () => clearInterval(timer);
+  }, []);
 
-    // Calculate available rooms (rooms without current bookings)
+  // Calculate available rooms (rooms without current bookings)
+  const getAvailableRooms = () => {
     const now = new Date();
-    const unavailableRoomIds = bookings
+    const unavailableRoomIds = allBookings
       .filter(booking => booking.startTime <= now && booking.endTime > now)
       .map(booking => booking.roomId);
     
-    setAvailableRooms(rooms.filter(room => !unavailableRoomIds.includes(room.id)));
-
-    return () => clearInterval(timer);
-  }, []);
+    return rooms.filter(room => !unavailableRoomIds.includes(room.id));
+  };
 
   // Get upcoming bookings (next 3 hours)
   const getUpcomingBookings = () => {
@@ -38,19 +40,20 @@ const AvailabilityDashboard = () => {
     const threeHoursLater = new Date(now);
     threeHoursLater.setHours(now.getHours() + 3);
 
-    return bookings
+    return allBookings
       .filter(booking => booking.startTime >= now && booking.startTime <= threeHoursLater)
       .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
       .slice(0, 5);
   };
-
-  const upcomingBookings = getUpcomingBookings();
 
   // Get room name by roomId
   const getRoomName = (roomId: string) => {
     const room = rooms.find(room => room.id === roomId);
     return room ? room.name : 'Unknown Room';
   };
+
+  const availableRooms = getAvailableRooms();
+  const upcomingBookings = getUpcomingBookings();
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

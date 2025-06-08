@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { CalendarIcon, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { createBooking, isRoomAvailable } from '@/lib/database';
+import { useAuth } from '@/contexts/AuthContext';
 
 const bookingFormSchema = z.object({
   title: z.string().min(3, { message: 'Meeting title is required' }),
@@ -20,7 +21,6 @@ const bookingFormSchema = z.object({
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Please enter a valid time (HH:MM)' }),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: 'Please enter a valid time (HH:MM)' }),
   attendees: z.coerce.number().int().min(1).max(50),
-  bookedBy: z.string().min(2, { message: 'Please enter your name' }),
 });
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>;
@@ -32,25 +32,27 @@ interface BookingFormProps {
 
 const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       title: '',
       attendees: 1,
-      bookedBy: '',
       startTime: '09:00',
       endTime: '10:00',
     },
   });
 
   const onSubmit = async (data: BookingFormValues) => {
+    if (!user) {
+      toast.error("You must be logged in to book a room");
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       // Convert time strings to Date objects
       const startHour = parseInt(data.startTime.split(':')[0]);
       const startMinute = parseInt(data.startTime.split(':')[1]);
@@ -70,14 +72,22 @@ const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) 
         return;
       }
       
-      console.log({
+      // Check room availability
+      const available = await isRoomAvailable(roomId, startDateTime, endDateTime);
+      if (!available) {
+        toast.error("Room is not available for the selected time slot");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Create booking in database
+      await createBooking({
         roomId,
         title: data.title,
         startTime: startDateTime,
         endTime: endDateTime,
-        bookedBy: data.bookedBy,
+        bookedBy: user.email || 'Unknown User',
         attendees: data.attendees,
-        status: 'confirmed'
       });
       
       toast.success("Room booked successfully!");
@@ -89,7 +99,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) 
       // Reset form
       form.reset();
     } catch (error) {
-      console.error(error);
+      console.error('Booking error:', error);
       toast.error("Failed to book room. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -190,35 +200,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) 
           />
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="attendees"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Number of Attendees</FormLabel>
-                <FormControl>
-                  <Input type="number" min="1" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="bookedBy"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Booked By</FormLabel>
-                <FormControl>
-                  <Input placeholder="Your Name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="attendees"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Number of Attendees</FormLabel>
+              <FormControl>
+                <Input type="number" min="1" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Booking...' : 'Book Room'}

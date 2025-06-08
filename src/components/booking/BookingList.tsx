@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Booking, Room, rooms } from '@/lib/data';
+import { Booking } from '@/lib/data';
+import { useRooms } from '@/hooks/useRooms';
 import {
   Table,
   TableBody,
@@ -23,6 +24,7 @@ interface BookingListProps {
 const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const { data: rooms = [] } = useRooms();
 
   // Filter bookings by search term
   const filteredBookings = searchTerm
