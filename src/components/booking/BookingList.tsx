@@ -16,6 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { deleteBooking } from '@/lib/database';
+import { useQueryClient } from '@tanstack/react-query';
+import EditBookingDialog from './EditBookingDialog';
 
 interface BookingListProps {
   bookings: Booking[];
@@ -24,7 +29,11 @@ interface BookingListProps {
 const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [deletingBooking, setDeletingBooking] = useState<Booking | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { data: rooms = [] } = useRooms();
+  const queryClient = useQueryClient();
 
   // Filter bookings by search term
   const filteredBookings = searchTerm
@@ -44,6 +53,34 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
   // View booking details
   const viewBookingDetails = (booking: Booking) => {
     setSelectedBooking(booking);
+  };
+
+  // Edit booking
+  const editBooking = (booking: Booking) => {
+    setEditingBooking(booking);
+  };
+
+  // Delete booking
+  const handleDeleteBooking = async () => {
+    if (!deletingBooking) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteBooking(deletingBooking.id);
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'room', deletingBooking.roomId] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'today'] });
+      
+      toast.success("Booking deleted successfully!");
+      setDeletingBooking(null);
+    } catch (error) {
+      console.error('Delete booking error:', error);
+      toast.error("Failed to delete booking. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -92,13 +129,29 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => viewBookingDetails(booking)}
-                    >
-                      Details
-                    </Button>
+                    <div className="flex gap-2 justify-end">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => viewBookingDetails(booking)}
+                      >
+                        Details
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => editBooking(booking)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setDeletingBooking(booking)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -111,6 +164,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
         </div>
       )}
 
+      {/* View Booking Details Dialog */}
       <Dialog open={!!selectedBooking} onOpenChange={(open) => !open && setSelectedBooking(null)}>
         {selectedBooking && (
           <DialogContent className="sm:max-w-md">
@@ -151,8 +205,48 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => editBooking(selectedBooking)}>
+                Edit
+              </Button>
               <Button onClick={() => setSelectedBooking(null)}>Close</Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Edit Booking Dialog */}
+      <EditBookingDialog 
+        booking={editingBooking}
+        isOpen={!!editingBooking}
+        onClose={() => setEditingBooking(null)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingBooking} onOpenChange={(open) => !open && setDeletingBooking(null)}>
+        {deletingBooking && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Booking</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this booking? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="bg-gray-50 p-4 rounded-md">
+                <p className="font-medium">{deletingBooking.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {getRoomName(deletingBooking.roomId)} • {format(deletingBooking.startTime, 'MMM d, yyyy')} • {format(deletingBooking.startTime, 'HH:mm')} - {format(deletingBooking.endTime, 'HH:mm')}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeletingBooking(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteBooking} disabled={isDeleting}>
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
             </div>
           </DialogContent>
         )}

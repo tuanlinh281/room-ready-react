@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase'
 import { Room, Booking } from './data'
 
@@ -206,4 +205,56 @@ export async function isRoomAvailable(
   }
 
   return data.length === 0
+}
+
+export async function updateBooking(
+  bookingId: string,
+  updates: {
+    title?: string
+    startTime?: Date
+    endTime?: Date
+    attendees?: number
+  }
+): Promise<Booking> {
+  const updateData: any = {}
+  
+  if (updates.title) updateData.title = updates.title
+  if (updates.startTime) updateData.start_time = updates.startTime.toISOString()
+  if (updates.endTime) updateData.end_time = updates.endTime.toISOString()
+  if (updates.attendees) updateData.attendees = updates.attendees
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .update(updateData)
+    .eq('id', bookingId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating booking:', error)
+    throw error
+  }
+
+  return {
+    id: data.id,
+    roomId: data.room_id,
+    title: data.title,
+    startTime: new Date(data.start_time),
+    endTime: new Date(data.end_time),
+    bookedBy: data.booked_by,
+    attendees: data.attendees,
+    status: data.status
+  }
+}
+
+export async function deleteBooking(bookingId: string): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .delete()
+    .eq('id', bookingId)
+
+  if (error) {
+    console.error('Error deleting booking:', error)
+    throw error
+  }
 }
