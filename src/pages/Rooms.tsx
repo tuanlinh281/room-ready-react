@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import RoomCard from '@/components/booking/RoomCard';
 import BookingForm from '@/components/booking/BookingForm';
 import { useRooms, useRoom } from '@/hooks/useRooms';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,9 @@ const RoomDetail = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { data: room, isLoading, error } = useRoom(roomId!);
+  
+  // Set up real-time subscriptions for this page
+  useRealtimeSubscription();
   
   if (isLoading) {
     return (
@@ -111,6 +114,9 @@ const RoomsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [capacityFilter, setCapacityFilter] = useState<string>('all');
   const { data: rooms = [], isLoading, error } = useRooms();
+  
+  // Set up real-time subscriptions for this page
+  useRealtimeSubscription();
   
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) || 

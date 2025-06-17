@@ -3,6 +3,7 @@ import Layout from '@/components/layout/Layout';
 import BookingList from '@/components/booking/BookingList';
 import BookingCalendar from '@/components/booking/BookingCalendar';
 import { useBookings } from '@/hooks/useBookings';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,9 @@ import { useNavigate } from 'react-router-dom';
 const Bookings = () => {
   const navigate = useNavigate();
   const { data: bookings = [], isLoading, error } = useBookings();
+  
+  // Set up real-time subscriptions for this page
+  useRealtimeSubscription();
   
   // Sort bookings with most recent first
   const sortedBookings = [...bookings].sort(
