@@ -45,6 +45,8 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onToggleMode }) => {
           title: 'Success',
           description: 'Account created successfully! Please check your email for confirmation.',
         })
+        // Automatically switch to sign-in screen after successful signup
+        onToggleMode()
       }
     } catch (error) {
       toast({
