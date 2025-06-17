@@ -27,12 +27,12 @@ export function useRealtimeSubscription() {
           queryClient.invalidateQueries({ queryKey: ['bookings', 'today'] })
           
           // If it's a specific room booking, invalidate that room's bookings too
-          if (payload.new && payload.new.room_id) {
+          if (payload.new && typeof payload.new === 'object' && 'room_id' in payload.new && payload.new.room_id) {
             queryClient.invalidateQueries({ 
               queryKey: ['bookings', 'room', payload.new.room_id] 
             })
           }
-          if (payload.old && payload.old.room_id) {
+          if (payload.old && typeof payload.old === 'object' && 'room_id' in payload.old && payload.old.room_id) {
             queryClient.invalidateQueries({ 
               queryKey: ['bookings', 'room', payload.old.room_id] 
             })
@@ -59,12 +59,12 @@ export function useRealtimeSubscription() {
           // Invalidate room queries
           queryClient.invalidateQueries({ queryKey: ['rooms'] })
           
-          if (payload.new && payload.new.id) {
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new && payload.new.id) {
             queryClient.invalidateQueries({ 
               queryKey: ['room', payload.new.id] 
             })
           }
-          if (payload.old && payload.old.id) {
+          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old && payload.old.id) {
             queryClient.invalidateQueries({ 
               queryKey: ['room', payload.old.id] 
             })
