@@ -207,6 +207,67 @@ export async function isRoomAvailable(
   return data.length === 0
 }
 
+export async function getRoomAvailabilityForDay(
+  roomId: string,
+  date: Date
+): Promise<{ hour: number; isAvailable: boolean; booking?: Booking }[]> {
+  const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString()
+  const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('room_id', roomId)
+    .gte('start_time', startOfDay)
+    .lte('start_time', endOfDay)
+    .order('start_time')
+
+  if (error) {
+    console.error('Error fetching room availability:', error)
+    throw error
+  }
+
+  const bookings = data?.map(booking => ({
+    id: booking.id,
+    roomId: booking.room_id,
+    title: booking.title,
+    startTime: new Date(booking.start_time),
+    endTime: new Date(booking.end_time),
+    bookedBy: booking.booked_by,
+    attendees: booking.attendees,
+    status: booking.status
+  })) || []
+
+  // Generate hourly slots (8 AM to 6 PM)
+  const availability = []
+  for (let hour = 8; hour < 18; hour++) {
+    const slotStart = new Date(date)
+    slotStart.setHours(hour, 0, 0, 0)
+    const slotEnd = new Date(date)
+    slotEnd.setHours(hour + 1, 0, 0, 0)
+
+    const booking = bookings.find(b => 
+      b.startTime <= slotStart && b.endTime > slotStart
+    )
+
+    availability.push({
+      hour,
+      isAvailable: !booking,
+      booking
+    })
+  }
+
+  return availability
+}
+
+export async function isRoomFullyBookedForDay(
+  roomId: string, 
+  date: Date
+): Promise<boolean> {
+  const availability = await getRoomAvailabilityForDay(roomId, date)
+  return availability.every(slot => !slot.isAvailable)
+}
+
 export async function updateBooking(
   bookingId: string,
   updates: {
