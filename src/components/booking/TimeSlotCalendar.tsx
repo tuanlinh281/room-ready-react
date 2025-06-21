@@ -41,24 +41,32 @@ const TimeSlotCalendar: React.FC<TimeSlotCalendarProps> = ({
     format(booking.startTime, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
   );
   
-  // Check if a time slot is booked
+  console.log('Room bookings for', roomId, 'on', format(selectedDate, 'yyyy-MM-dd'), ':', roomBookings);
+  
+  // Check if a time slot is booked - fixed overlap detection
   const isSlotBooked = (slotStart: Date, slotEnd: Date) => {
-    return roomBookings.some(booking => 
-      (isBefore(booking.startTime, slotEnd) && isAfter(booking.endTime, slotStart)) ||
-      isSameHour(booking.startTime, slotStart)
-    );
+    const isBooked = roomBookings.some(booking => {
+      // A booking overlaps with our slot if:
+      // booking starts before our slot ends AND booking ends after our slot starts
+      const overlaps = booking.startTime < slotEnd && booking.endTime > slotStart;
+      console.log('Checking overlap for slot', format(slotStart, 'HH:mm'), '-', format(slotEnd, 'HH:mm'), 
+                  'with booking', format(booking.startTime, 'HH:mm'), '-', format(booking.endTime, 'HH:mm'), 
+                  ':', overlaps);
+      return overlaps;
+    });
+    return isBooked;
   };
   
   // Get booking for a specific time slot
   const getSlotBooking = (slotStart: Date, slotEnd: Date) => {
     return roomBookings.find(booking => 
-      (isBefore(booking.startTime, slotEnd) && isAfter(booking.endTime, slotStart)) ||
-      isSameHour(booking.startTime, slotStart)
+      booking.startTime < slotEnd && booking.endTime > slotStart
     );
   };
   
   const handleSlotClick = (slotStart: Date) => {
     if (onTimeSlotSelect && !isSlotBooked(slotStart, addHours(slotStart, 1))) {
+      console.log('Time slot selected:', slotStart, 'to', addHours(slotStart, 1));
       onTimeSlotSelect(slotStart, addHours(slotStart, 1));
     }
   };

@@ -41,21 +41,42 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const form = useForm<BookingFormValues>({
-    resolver: zodResolver(bookingFormSchema),
-    defaultValues: {
+  // Set up default values based on preselected times or fallback to defaults
+  const getDefaultValues = () => {
+    if (preselectedStartTime && preselectedEndTime) {
+      return {
+        title: '',
+        date: preselectedStartTime,
+        startTime: format(preselectedStartTime, 'HH:mm'),
+        endTime: format(preselectedEndTime, 'HH:mm'),
+        attendees: 1,
+      };
+    }
+    return {
       title: '',
       attendees: 1,
       startTime: '09:00',
       endTime: '10:00',
-    },
+    };
+  };
+
+  const form = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingFormSchema),
+    defaultValues: getDefaultValues(),
   });
 
   // Update form when preselected times change
   useEffect(() => {
+    console.log('Preselected times changed:', preselectedStartTime, preselectedEndTime);
     if (preselectedStartTime && preselectedEndTime) {
       const startTimeString = format(preselectedStartTime, 'HH:mm');
       const endTimeString = format(preselectedEndTime, 'HH:mm');
+      
+      console.log('Setting form values:', {
+        date: preselectedStartTime,
+        startTime: startTimeString,
+        endTime: endTimeString
+      });
       
       form.setValue('date', preselectedStartTime);
       form.setValue('startTime', startTimeString);
@@ -64,6 +85,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
   }, [preselectedStartTime, preselectedEndTime, form]);
 
   const onSubmit = async (data: BookingFormValues) => {
+    console.log('Form submission data:', data);
+    
     if (!user) {
       toast.error("You must be logged in to book a room");
       return;
@@ -83,6 +106,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
       
       const endDateTime = new Date(data.date);
       endDateTime.setHours(endHour, endMinute, 0, 0);
+      
+      console.log('Calculated booking times:', {
+        startDateTime,
+        endDateTime,
+        formData: data
+      });
       
       // Check if end time is after start time
       if (endDateTime <= startDateTime) {
@@ -116,7 +145,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
       }
       
       // Reset form
-      form.reset();
+      form.reset(getDefaultValues());
     } catch (error) {
       console.error('Booking error:', error);
       toast.error("Failed to book room. Please try again.");
