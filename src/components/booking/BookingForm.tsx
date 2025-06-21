@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -14,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { createBooking, isRoomAvailable } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const bookingFormSchema = z.object({
   title: z.string().min(3, { message: 'Meeting title is required' }),
@@ -36,10 +36,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
   roomId, 
   onBookingComplete,
   preselectedStartTime,
-  preselectedEndTime
+  preselectedEndTime 
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Set up default values based on preselected times or fallback to defaults
   const getDefaultValues = () => {
@@ -128,15 +129,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
         return;
       }
       
-      // Create booking in database
+      // Create booking in database - Use user.id (UUID) instead of user.email
       await createBooking({
-        roomId,
+        roomId: roomId,
         title: data.title,
         startTime: startDateTime,
         endTime: endDateTime,
-        bookedBy: user.email || 'Unknown User',
+        bookedBy: user.id, // Changed from user.email to user.id (UUID)
         attendees: data.attendees,
       });
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'room', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'today'] });
       
       toast.success("Room booked successfully!");
       
@@ -156,7 +162,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="title"

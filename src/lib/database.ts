@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase'
 import { Room, Booking } from './data'
 
@@ -25,6 +24,45 @@ export interface DatabaseBooking {
   status: 'confirmed' | 'pending' | 'cancelled'
   created_at?: string
   updated_at?: string
+}
+
+// Helper function to get user email from UUID
+async function getUserEmail(userId: string): Promise<string> {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  return data?.user?.email || userId; // fallback to UUID if email not found
+}
+
+// Helper function to convert database booking to app booking
+async function convertDatabaseBooking(dbBooking: DatabaseBooking): Promise<Booking> {
+  // Try to get user email, fallback to the stored value if it's already an email
+  let bookedByDisplay = dbBooking.booked_by;
+  if (dbBooking.booked_by && !dbBooking.booked_by.includes('@')) {
+    // If it's a UUID (no @ symbol), try to get the email
+    try {
+      const { data } = await supabase
+        .from('auth.users')
+        .select('email')
+        .eq('id', dbBooking.booked_by)
+        .single();
+      
+      if (data?.email) {
+        bookedByDisplay = data.email;
+      }
+    } catch (error) {
+      console.log('Could not fetch user email, using UUID');
+    }
+  }
+
+  return {
+    id: dbBooking.id,
+    roomId: dbBooking.room_id,
+    title: dbBooking.title,
+    startTime: new Date(dbBooking.start_time),
+    endTime: new Date(dbBooking.end_time),
+    bookedBy: bookedByDisplay,
+    attendees: dbBooking.attendees,
+    status: dbBooking.status
+  };
 }
 
 // Room functions
@@ -85,16 +123,12 @@ export async function getBookings(): Promise<Booking[]> {
     throw error
   }
 
-  return data?.map(booking => ({
-    id: booking.id,
-    roomId: booking.room_id,
-    title: booking.title,
-    startTime: new Date(booking.start_time),
-    endTime: new Date(booking.end_time),
-    bookedBy: booking.booked_by,
-    attendees: booking.attendees,
-    status: booking.status
-  })) || []
+  // Convert all bookings
+  const bookings = await Promise.all(
+    (data || []).map(booking => convertDatabaseBooking(booking))
+  );
+
+  return bookings;
 }
 
 export async function getRoomBookings(roomId: string): Promise<Booking[]> {
@@ -109,16 +143,12 @@ export async function getRoomBookings(roomId: string): Promise<Booking[]> {
     throw error
   }
 
-  return data?.map(booking => ({
-    id: booking.id,
-    roomId: booking.room_id,
-    title: booking.title,
-    startTime: new Date(booking.start_time),
-    endTime: new Date(booking.end_time),
-    bookedBy: booking.booked_by,
-    attendees: booking.attendees,
-    status: booking.status
-  })) || []
+  // Convert all bookings
+  const bookings = await Promise.all(
+    (data || []).map(booking => convertDatabaseBooking(booking))
+  );
+
+  return bookings;
 }
 
 export async function getTodayBookings(): Promise<Booking[]> {
@@ -138,16 +168,12 @@ export async function getTodayBookings(): Promise<Booking[]> {
     throw error
   }
 
-  return data?.map(booking => ({
-    id: booking.id,
-    roomId: booking.room_id,
-    title: booking.title,
-    startTime: new Date(booking.start_time),
-    endTime: new Date(booking.end_time),
-    bookedBy: booking.booked_by,
-    attendees: booking.attendees,
-    status: booking.status
-  })) || []
+  // Convert all bookings
+  const bookings = await Promise.all(
+    (data || []).map(booking => convertDatabaseBooking(booking))
+  );
+
+  return bookings;
 }
 
 export async function createBooking(booking: {
@@ -155,7 +181,7 @@ export async function createBooking(booking: {
   title: string
   startTime: Date
   endTime: Date
-  bookedBy: string
+  bookedBy: string  // This is now expected to be a UUID
   attendees: number
 }): Promise<Booking> {
   const { data, error } = await supabase
@@ -165,7 +191,7 @@ export async function createBooking(booking: {
       title: booking.title,
       start_time: booking.startTime.toISOString(),
       end_time: booking.endTime.toISOString(),
-      booked_by: booking.bookedBy,
+      booked_by: booking.bookedBy, // Store UUID directly
       attendees: booking.attendees,
       status: 'confirmed'
     })
@@ -177,16 +203,7 @@ export async function createBooking(booking: {
     throw error
   }
 
-  return {
-    id: data.id,
-    roomId: data.room_id,
-    title: data.title,
-    startTime: new Date(data.start_time),
-    endTime: new Date(data.end_time),
-    bookedBy: data.booked_by,
-    attendees: data.attendees,
-    status: data.status
-  }
+  return convertDatabaseBooking(data);
 }
 
 export async function isRoomAvailable(
@@ -238,16 +255,9 @@ export async function getRoomAvailabilityForDay(
     throw error
   }
 
-  const bookings = data?.map(booking => ({
-    id: booking.id,
-    roomId: booking.room_id,
-    title: booking.title,
-    startTime: new Date(booking.start_time),
-    endTime: new Date(booking.end_time),
-    bookedBy: booking.booked_by,
-    attendees: booking.attendees,
-    status: booking.status
-  })) || []
+  const bookings = await Promise.all(
+    (data || []).map(booking => convertDatabaseBooking(booking))
+  );
 
   // Generate hourly slots (8 AM to 6 PM)
   const availability = []
@@ -308,16 +318,7 @@ export async function updateBooking(
     throw error
   }
 
-  return {
-    id: data.id,
-    roomId: data.room_id,
-    title: data.title,
-    startTime: new Date(data.start_time),
-    endTime: new Date(data.end_time),
-    bookedBy: data.booked_by,
-    attendees: data.attendees,
-    status: data.status
-  }
+  return convertDatabaseBooking(data);
 }
 
 export async function deleteBooking(bookingId: string): Promise<void> {
