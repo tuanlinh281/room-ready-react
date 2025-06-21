@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Booking } from '@/lib/data';
 import { useRooms } from '@/hooks/useRooms';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Table,
   TableBody,
@@ -33,6 +34,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
   const [deletingBooking, setDeletingBooking] = useState<Booking | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { data: rooms = [] } = useRooms();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Filter bookings by search term
@@ -48,6 +50,14 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
   const getRoomName = (roomId: string) => {
     const room = rooms.find(room => room.id === roomId);
     return room ? room.name : 'Unknown Room';
+  };
+
+  // Check if current user can edit/delete the booking
+  const canEditBooking = (booking: Booking) => {
+    if (!user) return false;
+    // Check if the booking was made by the current user
+    // The booking.bookedBy could be either UUID or email, so we check both
+    return booking.bookedBy === user.id || booking.bookedBy === user.email;
   };
 
   // View booking details
@@ -137,20 +147,24 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
                       >
                         Details
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => editBooking(booking)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setDeletingBooking(booking)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEditBooking(booking) && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => editBooking(booking)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setDeletingBooking(booking)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -206,9 +220,11 @@ const BookingList: React.FC<BookingListProps> = ({ bookings }) => {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => editBooking(selectedBooking)}>
-                Edit
-              </Button>
+              {canEditBooking(selectedBooking) && (
+                <Button variant="outline" onClick={() => editBooking(selectedBooking)}>
+                  Edit
+                </Button>
+              )}
               <Button onClick={() => setSelectedBooking(null)}>Close</Button>
             </div>
           </DialogContent>
