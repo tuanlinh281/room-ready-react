@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase'
 import { Room, Booking } from './data'
 
@@ -193,17 +194,24 @@ export async function isRoomAvailable(
   startTime: Date,
   endTime: Date
 ): Promise<boolean> {
+  console.log('Checking availability for room:', roomId, 'from', startTime, 'to', endTime)
+  
+  // Query for overlapping bookings - a booking overlaps if:
+  // 1. It starts before our end time AND ends after our start time
   const { data, error } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, start_time, end_time')
     .eq('room_id', roomId)
-    .or(`start_time.lte.${endTime.toISOString()},end_time.gte.${startTime.toISOString()}`)
+    .eq('status', 'confirmed')
+    .lt('start_time', endTime.toISOString())
+    .gt('end_time', startTime.toISOString())
 
   if (error) {
     console.error('Error checking room availability:', error)
     return false
   }
 
+  console.log('Found overlapping bookings:', data?.length || 0)
   return data.length === 0
 }
 
@@ -211,15 +219,18 @@ export async function getRoomAvailabilityForDay(
   roomId: string,
   date: Date
 ): Promise<{ hour: number; isAvailable: boolean; booking?: Booking }[]> {
-  const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString()
-  const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
+  const dayStart = new Date(date)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(date)
+  dayEnd.setHours(23, 59, 59, 999)
 
   const { data, error } = await supabase
     .from('bookings')
     .select('*')
     .eq('room_id', roomId)
-    .gte('start_time', startOfDay)
-    .lte('start_time', endOfDay)
+    .eq('status', 'confirmed')
+    .gte('start_time', dayStart.toISOString())
+    .lte('end_time', dayEnd.toISOString())
     .order('start_time')
 
   if (error) {
@@ -246,8 +257,9 @@ export async function getRoomAvailabilityForDay(
     const slotEnd = new Date(date)
     slotEnd.setHours(hour + 1, 0, 0, 0)
 
+    // Check if any booking overlaps with this hour slot
     const booking = bookings.find(b => 
-      b.startTime <= slotStart && b.endTime > slotStart
+      b.startTime < slotEnd && b.endTime > slotStart
     )
 
     availability.push({

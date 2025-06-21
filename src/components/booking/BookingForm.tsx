@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,9 +28,16 @@ type BookingFormValues = z.infer<typeof bookingFormSchema>;
 interface BookingFormProps {
   roomId: string;
   onBookingComplete?: () => void;
+  preselectedStartTime?: Date | null;
+  preselectedEndTime?: Date | null;
 }
 
-const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) => {
+const BookingForm: React.FC<BookingFormProps> = ({ 
+  roomId, 
+  onBookingComplete,
+  preselectedStartTime,
+  preselectedEndTime
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
@@ -43,6 +50,18 @@ const BookingForm: React.FC<BookingFormProps> = ({ roomId, onBookingComplete }) 
       endTime: '10:00',
     },
   });
+
+  // Update form when preselected times change
+  useEffect(() => {
+    if (preselectedStartTime && preselectedEndTime) {
+      const startTimeString = format(preselectedStartTime, 'HH:mm');
+      const endTimeString = format(preselectedEndTime, 'HH:mm');
+      
+      form.setValue('date', preselectedStartTime);
+      form.setValue('startTime', startTimeString);
+      form.setValue('endTime', endTimeString);
+    }
+  }, [preselectedStartTime, preselectedEndTime, form]);
 
   const onSubmit = async (data: BookingFormValues) => {
     if (!user) {
