@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { format, addHours, startOfDay, isSameHour, isAfter, isBefore } from 'date-fns';
 import { Booking } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Clock } from 'lucide-react';
+import BookingForm from './BookingForm';
 
 interface TimeSlotCalendarProps {
   roomId: string;
@@ -22,6 +24,9 @@ const TimeSlotCalendar: React.FC<TimeSlotCalendarProps> = ({
   selectedDate,
   onTimeSlotSelect
 }) => {
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  
   const startHour = 8; // 8 AM
   const endHour = 18; // 6 PM
   
@@ -65,89 +70,126 @@ const TimeSlotCalendar: React.FC<TimeSlotCalendarProps> = ({
   };
   
   const handleSlotClick = (slotStart: Date) => {
-    if (onTimeSlotSelect && !isSlotBooked(slotStart, addHours(slotStart, 1))) {
-      console.log('Time slot selected:', slotStart, 'to', addHours(slotStart, 1));
-      onTimeSlotSelect(slotStart, addHours(slotStart, 1));
+    const slotEnd = addHours(slotStart, 1);
+    if (!isSlotBooked(slotStart, slotEnd)) {
+      console.log('Time slot selected:', slotStart, 'to', slotEnd);
+      if (onTimeSlotSelect) {
+        onTimeSlotSelect(slotStart, slotEnd);
+      }
     }
   };
 
+  const handleBookClick = (slotStart: Date, slotEnd: Date, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedSlot({ start: slotStart, end: slotEnd });
+    setIsBookingDialogOpen(true);
+  };
+
+  const handleBookingComplete = () => {
+    setIsBookingDialogOpen(false);
+    setSelectedSlot(null);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {roomName} - {format(selectedDate, 'MMMM d, yyyy')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-2">
-          {timeSlots.map(({ start, end }) => {
-            const isBooked = isSlotBooked(start, end);
-            const booking = getSlotBooking(start, end);
-            const isPast = isBefore(end, new Date());
-            
-            return (
-              <div
-                key={start.getTime()}
-                className={`
-                  p-3 border rounded-md transition-colors cursor-pointer
-                  ${isBooked 
-                    ? 'bg-red-50 border-red-200' 
-                    : isPast 
-                      ? 'bg-gray-50 border-gray-200 opacity-50' 
-                      : 'bg-green-50 border-green-200 hover:bg-green-100'
-                  }
-                `}
-                onClick={() => !isBooked && !isPast && handleSlotClick(start)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-sm">
-                      {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
-                    </span>
-                    <Badge 
-                      variant={isBooked ? 'destructive' : isPast ? 'secondary' : 'default'}
-                      className="text-xs"
-                    >
-                      {isBooked ? 'Booked' : isPast ? 'Past' : 'Available'}
-                    </Badge>
-                  </div>
-                  
-                  {isBooked && booking && (
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{booking.title}</p>
-                      <p className="text-xs text-muted-foreground">{booking.bookedBy}</p>
-                      <p className="text-xs text-muted-foreground">{booking.attendees} attendees</p>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            {roomName} - {format(selectedDate, 'MMMM d, yyyy')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2">
+            {timeSlots.map(({ start, end }) => {
+              const isBooked = isSlotBooked(start, end);
+              const booking = getSlotBooking(start, end);
+              const isPast = isBefore(end, new Date());
+              
+              return (
+                <div
+                  key={start.getTime()}
+                  className={`
+                    p-3 border rounded-md transition-colors cursor-pointer
+                    ${isBooked 
+                      ? 'bg-red-50 border-red-200' 
+                      : isPast 
+                        ? 'bg-gray-50 border-gray-200 opacity-50' 
+                        : 'bg-green-50 border-green-200 hover:bg-green-100'
+                    }
+                  `}
+                  onClick={() => !isBooked && !isPast && handleSlotClick(start)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-sm">
+                        {format(start, 'HH:mm')} - {format(end, 'HH:mm')}
+                      </span>
+                      <Badge 
+                        variant={isBooked ? 'destructive' : isPast ? 'secondary' : 'default'}
+                        className="text-xs"
+                      >
+                        {isBooked ? 'Booked' : isPast ? 'Past' : 'Available'}
+                      </Badge>
                     </div>
-                  )}
-                  
-                  {!isBooked && !isPast && onTimeSlotSelect && (
-                    <Button size="sm" variant="outline">
-                      Book
-                    </Button>
-                  )}
+                    
+                    {isBooked && booking && (
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{booking.title}</p>
+                        <p className="text-xs text-muted-foreground">{booking.bookedBy}</p>
+                        <p className="text-xs text-muted-foreground">{booking.attendees} attendees</p>
+                      </div>
+                    )}
+                    
+                    {!isBooked && !isPast && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => handleBookClick(start, end, e)}
+                      >
+                        Book
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-            Available
+              );
+            })}
           </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
-            Booked
+          
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
+              Available
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
+              Booked
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
+              Past
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
-            Past
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Booking Dialog */}
+      <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Book {roomName}</DialogTitle>
+          </DialogHeader>
+          {selectedSlot && (
+            <BookingForm 
+              roomId={roomId}
+              onBookingComplete={handleBookingComplete}
+              preselectedStartTime={selectedSlot.start}
+              preselectedEndTime={selectedSlot.end}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
